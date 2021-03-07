@@ -111,6 +111,7 @@ public class RouteInfoManager {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
             try {
+                // 加锁
                 this.lock.writeLock().lockInterruptibly();
 
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
@@ -122,10 +123,13 @@ public class RouteInfoManager {
 
                 boolean registerFirst = false;
 
+                // 获取Broker的注册信息
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
+                // 为空表示第一次注册，不为空表示为后续的心跳机制，不作处理
                 if (null == brokerData) {
                     registerFirst = true;
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<Long, String>());
+                    // 将Broker 信息放入Map中
                     this.brokerAddrTable.put(brokerName, brokerData);
                 }
                 Map<Long, String> brokerAddrsMap = brokerData.getBrokerAddrs();
@@ -156,6 +160,7 @@ public class RouteInfoManager {
                     }
                 }
 
+                // 更新心跳时间
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr,
                     new BrokerLiveInfo(
                         System.currentTimeMillis(),
@@ -431,10 +436,12 @@ public class RouteInfoManager {
         while (it.hasNext()) {
             Entry<String, BrokerLiveInfo> next = it.next();
             long last = next.getValue().getLastUpdateTimestamp();
+            // 当前时间超过上一次心跳时间 +  默认120s
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
                 RemotingUtil.closeChannel(next.getValue().getChannel());
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                // 任务Broker下线 移除掉Broker
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
             }
         }

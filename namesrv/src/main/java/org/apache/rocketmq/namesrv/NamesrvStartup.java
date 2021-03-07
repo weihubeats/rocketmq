@@ -54,7 +54,9 @@ public class NamesrvStartup {
     public static NamesrvController main0(String[] args) {
 
         try {
+            // 构造 NamesrvController 初始化各种配置信息
             NamesrvController controller = createNamesrvController(args);
+            // 启动核心方法
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -107,20 +109,20 @@ public class NamesrvStartup {
             MixAll.printObjectProperties(console, nettyServerConfig);
             System.exit(0);
         }
-
+        // 获取配置类容填充到namesrvConfig
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
-
+        // 如果rocketmqHome 打印异常退出
         if (null == namesrvConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment to match the location of the RocketMQ installation%n", MixAll.ROCKETMQ_HOME_ENV);
             System.exit(-2);
         }
-
+        // 日志相关配置
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(lc);
         lc.reset();
         configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/conf/logback_namesrv.xml");
-
+        // 打印NameServer所有配置信息
         log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
         MixAll.printObjectProperties(log, namesrvConfig);
@@ -139,7 +141,7 @@ public class NamesrvStartup {
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
-
+        // 初始化核心逻辑
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();

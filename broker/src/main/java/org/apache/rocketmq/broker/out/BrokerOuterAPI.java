@@ -62,7 +62,8 @@ public class BrokerOuterAPI {
     private final RemotingClient remotingClient;
     private final TopAddressing topAddressing = new TopAddressing(MixAll.getWSAddr());
     private String nameSrvAddr = null;
-    private BrokerFixedThreadPoolExecutor brokerOuterExecutor = new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
+    private BrokerFixedThreadPoolExecutor brokerOuterExecutor =
+            new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
         new ArrayBlockingQueue<Runnable>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
 
     public BrokerOuterAPI(final NettyClientConfig nettyClientConfig) {
@@ -122,10 +123,15 @@ public class BrokerOuterAPI {
         final int timeoutMills,
         final boolean compressed) {
 
+        // 用于存放每个远程注册的返回结果
         final List<RegisterBrokerResult> registerBrokerResultList = new CopyOnWriteArrayList<>();
+
+        // NameServer的注册地址
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
+
+            // 构建网络请求头
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
             requestHeader.setBrokerAddr(brokerAddr);
             requestHeader.setBrokerId(brokerId);
@@ -134,29 +140,30 @@ public class BrokerOuterAPI {
             requestHeader.setHaServerAddr(haServerAddr);
             requestHeader.setCompressed(compressed);
 
+            // 构建网络请求 body
             RegisterBrokerBody requestBody = new RegisterBrokerBody();
             requestBody.setTopicConfigSerializeWrapper(topicConfigWrapper);
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
+
+            // 多线程注册提高效率
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
-                brokerOuterExecutor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
-                            if (result != null) {
-                                registerBrokerResultList.add(result);
-                            }
-
-                            log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
-                        } catch (Exception e) {
-                            log.warn("registerBroker Exception, {}", namesrvAddr, e);
-                        } finally {
-                            countDownLatch.countDown();
+                //自定义线程池
+                brokerOuterExecutor.execute(() -> {
+                    try {
+                        RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
+                        if (result != null) {
+                            registerBrokerResultList.add(result);
                         }
+
+                        log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
+                    } catch (Exception e) {
+                        log.warn("registerBroker Exception, {}", namesrvAddr, e);
+                    } finally {
+                        countDownLatch.countDown();
                     }
                 });
             }
