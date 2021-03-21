@@ -148,6 +148,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
+        // 注册钩子函数 在JVM进程关闭时，优雅地释放netty服务、线程池等资源
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {
