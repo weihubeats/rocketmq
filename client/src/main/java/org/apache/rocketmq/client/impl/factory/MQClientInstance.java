@@ -228,20 +228,28 @@ public class MQClientInstance {
                 case CREATE_JUST:
                     this.serviceState = ServiceState.START_FAILED;
                     // If not specified,looking address from name server
+                    // 1. 获取 namesrvAddr 地址
                     if (null == this.clientConfig.getNamesrvAddr()) {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
-                    // Start request-response channel
+                    /**
+                     * 2. Start request-response channel netty相关网络请求封装
+                     * 启动一个netty客户端
+                     */
                     this.mQClientAPIImpl.start();
-                    // Start various schedule tasks
+                    // 3. Start various schedule tasks 启动一些定时器
                     this.startScheduledTask();
-                    // Start pull service
+                    // 4. Start pull service
+                    /**
+                     * 核心方法 开启拉取消息线程, 方法逻辑在本类的 run 方法 @{link PullMessageService run 方法}
+                     */
                     this.pullMessageService.start();
-                    // Start rebalance service
+                    // 5. Start rebalance service
                     this.rebalanceService.start();
-                    // Start push service
+                    // 6. Start push service 发送要求重新的消息
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
                     log.info("the client factory [{}] start OK", this.clientId);
+                    // 7. 将 serviceState 状态设置为运行状态
                     this.serviceState = ServiceState.RUNNING;
                     break;
                 case START_FAILED:
@@ -253,6 +261,7 @@ public class MQClientInstance {
     }
 
     private void startScheduledTask() {
+        // 每隔2分钟尝试获取一次NameServer地址
         if (null == this.clientConfig.getNamesrvAddr()) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
@@ -266,7 +275,7 @@ public class MQClientInstance {
                 }
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
-
+        // 默认每隔30S尝试更新主题路由信息
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -279,6 +288,7 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
 
+        // 每隔30S 进行Broker心跳检测
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -292,6 +302,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // //默认每隔5秒持久化ConsumeOffset
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -304,6 +315,7 @@ public class MQClientInstance {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        //默认每隔1S检查线程池适配
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

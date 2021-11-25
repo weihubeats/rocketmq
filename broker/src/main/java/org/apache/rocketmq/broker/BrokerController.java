@@ -233,16 +233,18 @@ public class BrokerController {
 
     public boolean initialize() throws CloneNotSupportedException {
 
-        // 加载磁盘信息
+        // 从磁盘中初始化 topicConfigManager
         boolean result = this.topicConfigManager.load();
-
+        // 加载消费偏移
         result = result && this.consumerOffsetManager.load();
+        // 加载消费组信息
         result = result && this.subscriptionGroupManager.load();
+        // 加载过滤器配置
         result = result && this.consumerFilterManager.load();
 
         if (result) {
             try {
-                // 创建消息存储管理组件 管理磁盘消息
+                // 创建消息存储管理组件,默认使用commitLog 管理磁盘消息
                 this.messageStore =
                     new DefaultMessageStore(this.messageStoreConfig, this.brokerStatsManager, this.messageArrivingListener,
                         this.brokerConfig);
@@ -338,6 +340,7 @@ public class BrokerController {
 
             final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
             final long period = 1000 * 60 * 60 * 24;
+            // 定时记录broker状态 默认 86400s 一次
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -348,7 +351,7 @@ public class BrokerController {
                     }
                 }
             }, initialDelay, period, TimeUnit.MILLISECONDS);
-
+            // 定时持久化 offset, 5s 持久化一次
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -359,7 +362,7 @@ public class BrokerController {
                     }
                 }
             }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
-
+            // 定时持久化filter, 10s同步一次
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -565,7 +568,7 @@ public class BrokerController {
         this.fastRemotingServer.registerProcessor(RequestCode.SEND_BATCH_MESSAGE, sendProcessor, this.sendMessageExecutor);
         this.fastRemotingServer.registerProcessor(RequestCode.CONSUMER_SEND_MSG_BACK, sendProcessor, this.sendMessageExecutor);
         /**
-         * PullMessageProcessor
+         * PullMessageProcessor 拉取消息请求处理
          */
         this.remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
         this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
@@ -949,7 +952,7 @@ public class BrokerController {
             }
             topicConfigWrapper.setTopicConfigTable(topicConfigTable);
         }
-
+        // 判断是否进行Broker注册
         if (forceRegister || needRegister(this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
             this.brokerConfig.getBrokerName(),
@@ -963,7 +966,7 @@ public class BrokerController {
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
 
-        // 将Broker 注册到所有NameServer上
+        // 将Broker 注册到所有NameServer上，NameServer可能是集群有多个，所以这里是List
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
             this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),

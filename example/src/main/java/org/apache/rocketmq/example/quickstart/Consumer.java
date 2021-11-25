@@ -64,7 +64,6 @@ public class Consumer {
          *  Register callback to execute on arrival of messages fetched from brokers.
          */
         consumer.registerMessageListener(new MessageListenerConcurrently() {
-
             @Override
             public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
                 ConsumeConcurrentlyContext context) {

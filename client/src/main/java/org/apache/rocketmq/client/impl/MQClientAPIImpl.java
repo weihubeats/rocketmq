@@ -717,9 +717,11 @@ public class MQClientAPIImpl {
             case ONEWAY:
                 assert false;
                 return null;
+                // 异步拉取消息
             case ASYNC:
                 this.pullMessageAsync(addr, request, timeoutMillis, pullCallback);
                 return null;
+                // 同步拉取消息
             case SYNC:
                 return this.pullMessageSync(addr, request, timeoutMillis);
             default:
@@ -767,8 +769,14 @@ public class MQClientAPIImpl {
         final RemotingCommand request,
         final long timeoutMillis
     ) throws RemotingException, InterruptedException, MQBrokerException {
+        /**
+         * 同步拉取消息核心实现
+         */
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
         assert response != null;
+        /**
+         * 拉取消息核心实现
+         */
         return this.processPullResponse(response, addr);
     }
 

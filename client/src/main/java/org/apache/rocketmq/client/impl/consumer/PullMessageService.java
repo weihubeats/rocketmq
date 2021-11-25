@@ -86,12 +86,16 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * 拉取消息核心方法
+     */
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");
 
         while (!this.isStopped()) {
             try {
+                // 从LinkedBlockingQueue中拉取 pullRequest 如果队列为空 则阻塞等待
                 PullRequest pullRequest = this.pullRequestQueue.take();
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {

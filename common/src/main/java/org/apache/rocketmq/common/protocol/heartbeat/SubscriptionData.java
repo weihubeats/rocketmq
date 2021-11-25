@@ -27,13 +27,31 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SubscriptionData implements Comparable<SubscriptionData> {
+    /**
+     * 常量，表示订阅该topic下所有类型消息
+     */
     public final static String SUB_ALL = "*";
+    /**
+     * 开启类过滤模式，默认不开启
+     */
     private boolean classFilterMode = false;
     private String topic;
+    /**
+     * 订阅表达式
+     */
     private String subString;
+    /**
+     * tag列表
+     */
     private Set<String> tagsSet = new HashSet<String>();
+    /**
+     * tag hashcode
+     */
     private Set<Integer> codeSet = new HashSet<Integer>();
     private long subVersion = System.currentTimeMillis();
+    /**
+     * 表达式类型，分 TAG 和 SQL
+     */
     private String expressionType = ExpressionType.TAG;
 
     @JSONField(serialize = false)
