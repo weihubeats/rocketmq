@@ -242,12 +242,11 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private boolean unitMode = false;
 
     /**
-     * Max re-consume times. -1 means 16 times.
-     * </p>
+     * Max re-consume times.
+     * In concurrently mode, -1 means 16;
+     * In orderly mode, -1 means Integer.MAX_VALUE.
      *
-     * If messages are re-consumed more than {@link #maxReconsumeTimes} before success, it's be directed to a deletion
-     * queue waiting.
-     * 消息最大消费重试次数 默认16次
+     * If messages are re-consumed more than {@link #maxReconsumeTimes} before success.
      */
     private int maxReconsumeTimes = -1;
 
@@ -420,6 +419,14 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     @Override
     public void createTopic(String key, String newTopic, int queueNum) throws MQClientException {
         createTopic(key, withNamespace(newTopic), queueNum, 0);
+    }
+
+    @Override
+    public void setUseTLS(boolean useTLS) {
+        super.setUseTLS(useTLS);
+        if (traceDispatcher != null && traceDispatcher instanceof AsyncTraceDispatcher) {
+            ((AsyncTraceDispatcher) traceDispatcher).getTraceProducer().setUseTLS(useTLS);
+        }
     }
 
     /**

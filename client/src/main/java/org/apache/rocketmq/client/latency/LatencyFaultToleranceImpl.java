@@ -84,7 +84,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
                 return tmpList.get(0).getName();
             } else {
                 // 多线程自增，half取模
-                final int i = this.whichItemWorst.getAndIncrement() % half;
+                final int i = this.whichItemWorst.incrementAndGet() % half;
                 return tmpList.get(i).getName();
             }
         }

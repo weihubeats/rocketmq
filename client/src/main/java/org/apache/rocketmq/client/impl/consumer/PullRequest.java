@@ -36,17 +36,14 @@ public class PullRequest {
      * 待拉取的MessageQueue偏移量
      */
     private long nextOffset;
-    /**
-     * 是否被锁定
-     */
-    private boolean lockedFirst = false;
+    private boolean previouslyLocked = false;
 
-    public boolean isLockedFirst() {
-        return lockedFirst;
+    public boolean isPreviouslyLocked() {
+        return previouslyLocked;
     }
 
-    public void setLockedFirst(boolean lockedFirst) {
-        this.lockedFirst = lockedFirst;
+    public void setPreviouslyLocked(boolean previouslyLocked) {
+        this.previouslyLocked = previouslyLocked;
     }
 
     public String getConsumerGroup() {

@@ -73,7 +73,7 @@ public class MQFaultStrategy {
         if (this.sendLatencyFaultEnable) {
             try {
                 // 自增取值 简单的轮训 通过 ThreadLocal 维护
-                int index = tpInfo.getSendWhichQueue().getAndIncrement();
+                int index = tpInfo.getSendWhichQueue().incrementAndGet();
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
                     // index与当前路由表中的对列总个数取模 简单轮询
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size();
@@ -95,7 +95,7 @@ public class MQFaultStrategy {
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();
                     if (notBestBroker != null) {
                         mq.setBrokerName(notBestBroker);
-                        mq.setQueueId(tpInfo.getSendWhichQueue().getAndIncrement() % writeQueueNums);
+                        mq.setQueueId(tpInfo.getSendWhichQueue().incrementAndGet() % writeQueueNums);
                     }
                     return mq;
                 } else {

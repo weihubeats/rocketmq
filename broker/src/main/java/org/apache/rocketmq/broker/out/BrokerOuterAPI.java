@@ -62,8 +62,7 @@ public class BrokerOuterAPI {
     private final RemotingClient remotingClient;
     private final TopAddressing topAddressing = new TopAddressing(MixAll.getWSAddr());
     private String nameSrvAddr = null;
-    private BrokerFixedThreadPoolExecutor brokerOuterExecutor =
-            new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
+    private BrokerFixedThreadPoolExecutor brokerOuterExecutor = new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
         new ArrayBlockingQueue<Runnable>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
 
     public BrokerOuterAPI(final NettyClientConfig nettyClientConfig) {
@@ -152,18 +151,21 @@ public class BrokerOuterAPI {
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
                 //自定义线程池
-                brokerOuterExecutor.execute(() -> {
-                    try {
-                        RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
-                        if (result != null) {
-                            registerBrokerResultList.add(result);
-                        }
+                brokerOuterExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            RegisterBrokerResult result = registerBroker(namesrvAddr, oneway, timeoutMills, requestHeader, body);
+                            if (result != null) {
+                                registerBrokerResultList.add(result);
+                            }
 
-                        log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
-                    } catch (Exception e) {
-                        log.warn("registerBroker Exception, {}", namesrvAddr, e);
-                    } finally {
-                        countDownLatch.countDown();
+                            log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
+                        } catch (Exception e) {
+                            log.warn("registerBroker Exception, {}", namesrvAddr, e);
+                        } finally {
+                            countDownLatch.countDown();
+                        }
                     }
                 });
             }
