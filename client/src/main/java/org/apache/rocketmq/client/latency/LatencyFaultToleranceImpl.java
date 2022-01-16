@@ -31,6 +31,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
+        // 有问题列表
         FaultItem old = this.faultItemTable.get(name);
         if (null == old) {
             final FaultItem faultItem = new FaultItem(name);
@@ -50,6 +51,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public boolean isAvailable(final String name) {
+        // 失败Broker列表
         final FaultItem faultItem = this.faultItemTable.get(name);
         if (faultItem != null) {
             return faultItem.isAvailable();
@@ -72,14 +74,16 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
 
         if (!tmpList.isEmpty()) {
+            // 先打乱
             Collections.shuffle(tmpList);
-
+            // 再排序
             Collections.sort(tmpList);
-
+            // 队列有1个元素，直接返回
             final int half = tmpList.size() / 2;
             if (half <= 0) {
                 return tmpList.get(0).getName();
             } else {
+                // 多线程自增，half取模
                 final int i = this.whichItemWorst.getAndIncrement() % half;
                 return tmpList.get(i).getName();
             }

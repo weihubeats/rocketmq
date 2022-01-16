@@ -26,6 +26,51 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 public class TopicPublishInfo {
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
+
+    /**
+     * [
+     *     {
+     *         "brokerName":"broker-a",
+     *         "queueId":0,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-a",
+     *         "queueId":1,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-a",
+     *         "queueId":2,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-a",
+     *         "queueId":3,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-b",
+     *         "queueId":0,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-b",
+     *         "queueId":1,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-b",
+     *         "queueId":2,
+     *         "topic":"TBW102%zouLeTopic"
+     *     },
+     *     {
+     *         "brokerName":"broker-b",
+     *         "queueId":3,
+     *         "topic":"TBW102%zouLeTopic"
+     *     }
+     * ]
+     */
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private TopicRouteData topicRouteData;

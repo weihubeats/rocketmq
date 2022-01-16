@@ -268,8 +268,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     @Override
     public void start() throws MQClientException {
+        // 设置生产者组 没什么实际意义
         this.setProducerGroup(withNamespace(this.producerGroup));
+        // 启动Product
         this.defaultMQProducerImpl.start();
+        // 消息轨迹相关内容
         if (null != traceDispatcher) {
             try {
                 traceDispatcher.start(this.getNamesrvAddr(), this.getAccessChannel());
@@ -320,8 +323,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     @Override
     public SendResult send(
         Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        // 校验消息
         Validators.checkMessage(msg, this);
         msg.setTopic(withNamespace(msg.getTopic()));
+        // 发送消息
         return this.defaultMQProducerImpl.send(msg);
     }
 
