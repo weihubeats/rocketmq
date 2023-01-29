@@ -18,6 +18,7 @@ package org.apache.rocketmq.client.consumer;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.QueryResult;
@@ -182,11 +183,17 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private int pullThresholdForQueue = 1000;
 
     /**
+     * Flow control threshold on queue level, means max num of messages waiting to ack.
+     * in contrast with pull threshold, once a message is popped, it's considered the beginning of consumption.
+     */
+    private int popThresholdForQueue = 96;
+
+    /**
      * Limit the cached message size on queue level, each message queue will cache at most 100 MiB messages by default,
      * Consider the {@code pullBatchSize}, the instantaneous value may exceed the limit
      *
      * <p>
-     * The size of a message only measured by message body, so it's not accurate
+     * The size(MB) of a message only measured by message body, so it's not accurate
      */
     private int pullThresholdSizeForQueue = 100;
 
@@ -230,6 +237,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     private int pullBatchSize = 32;
 
+
+    private int pullBatchSizeInBytes = 256 * 1024;
+
     /**
      * Whether update subscription relationship when every pull
      * 是否每次拉取之后都跟新订阅关系
@@ -263,6 +273,16 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private long consumeTimeout = 15;
 
     /**
+     * Maximum amount of invisible time in millisecond of a message, rang is [5000, 300000]
+     */
+    private long popInvisibleTime = 60000;
+
+    /**
+     * Batch pop size. range is [1, 32]
+     */
+    private int popBatchNums = 32;
+
+    /**
      * Maximum time to await message consuming when shutdown consumer, 0 indicates no await.
      */
     private long awaitTerminationMillisWhenShutdown = 0;
@@ -271,6 +291,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * Interface of asynchronous transfer data
      */
     private TraceDispatcher traceDispatcher = null;
+
+    // force to use client rebalance
+    private boolean clientRebalance = true;
 
     /**
      * Default constructor.
@@ -417,14 +440,14 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     @Deprecated
     @Override
-    public void createTopic(String key, String newTopic, int queueNum) throws MQClientException {
-        createTopic(key, withNamespace(newTopic), queueNum, 0);
+    public void createTopic(String key, String newTopic, int queueNum, Map<String, String> attributes) throws MQClientException {
+        createTopic(key, withNamespace(newTopic), queueNum, 0, null);
     }
 
     @Override
     public void setUseTLS(boolean useTLS) {
         super.setUseTLS(useTLS);
-        if (traceDispatcher != null && traceDispatcher instanceof AsyncTraceDispatcher) {
+        if (traceDispatcher instanceof AsyncTraceDispatcher) {
             ((AsyncTraceDispatcher) traceDispatcher).getTraceProducer().setUseTLS(useTLS);
         }
     }
@@ -434,7 +457,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     @Deprecated
     @Override
-    public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag) throws MQClientException {
+    public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag, Map<String, String> attributes) throws MQClientException {
         this.defaultMQPushConsumerImpl.createTopic(key, withNamespace(newTopic), queueNum, topicSysFlag);
     }
 
@@ -614,6 +637,14 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         this.pullThresholdForQueue = pullThresholdForQueue;
     }
 
+    public int getPopThresholdForQueue() {
+        return popThresholdForQueue;
+    }
+
+    public void setPopThresholdForQueue(int popThresholdForQueue) {
+        this.popThresholdForQueue = popThresholdForQueue;
+    }
+
     public int getPullThresholdForTopic() {
         return pullThresholdForTopic;
     }
@@ -647,9 +678,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     @Deprecated
     public void setSubscription(Map<String, String> subscription) {
-        Map<String, String> subscriptionWithNamespace = new HashMap<String, String>();
-        for (String topic : subscription.keySet()) {
-            subscriptionWithNamespace.put(withNamespace(topic), subscription.get(topic));
+        Map<String, String> subscriptionWithNamespace = new HashMap<String, String>(subscription.size(), 1);
+        for (Entry<String, String> topicEntry : subscription.entrySet()) {
+            subscriptionWithNamespace.put(withNamespace(topicEntry.getKey()), topicEntry.getValue());
         }
         this.subscription = subscriptionWithNamespace;
     }
@@ -672,7 +703,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     public void sendMessageBack(MessageExt msg, int delayLevel)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         msg.setTopic(withNamespace(msg.getTopic()));
-        this.defaultMQPushConsumerImpl.sendMessageBack(msg, delayLevel, null);
+        this.defaultMQPushConsumerImpl.sendMessageBack(msg, delayLevel, (String) null);
     }
 
     /**
@@ -869,10 +900,12 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         this.postSubscriptionWhenPull = postSubscriptionWhenPull;
     }
 
+    @Override
     public boolean isUnitMode() {
         return unitMode;
     }
 
+    @Override
     public void setUnitMode(boolean isUnitMode) {
         this.unitMode = isUnitMode;
     }
@@ -909,6 +942,14 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         this.consumeTimeout = consumeTimeout;
     }
 
+    public long getPopInvisibleTime() {
+        return popInvisibleTime;
+    }
+
+    public void setPopInvisibleTime(long popInvisibleTime) {
+        this.popInvisibleTime = popInvisibleTime;
+    }
+
     public long getAwaitTerminationMillisWhenShutdown() {
         return awaitTerminationMillisWhenShutdown;
     }
@@ -917,7 +958,31 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         this.awaitTerminationMillisWhenShutdown = awaitTerminationMillisWhenShutdown;
     }
 
+    public int getPullBatchSizeInBytes() {
+        return pullBatchSizeInBytes;
+    }
+
+    public void setPullBatchSizeInBytes(int pullBatchSizeInBytes) {
+        this.pullBatchSizeInBytes = pullBatchSizeInBytes;
+    }
+
     public TraceDispatcher getTraceDispatcher() {
         return traceDispatcher;
+    }
+
+    public int getPopBatchNums() {
+        return popBatchNums;
+    }
+
+    public void setPopBatchNums(int popBatchNums) {
+        this.popBatchNums = popBatchNums;
+    }
+
+    public boolean isClientRebalance() {
+        return clientRebalance;
+    }
+
+    public void setClientRebalance(boolean clientRebalance) {
+        this.clientRebalance = clientRebalance;
     }
 }
